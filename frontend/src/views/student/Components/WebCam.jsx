@@ -5,9 +5,7 @@ import Webcam from 'react-webcam';
 import { drawRect } from './utilities';
 import { Box, Card } from '@mui/material';
 import swal from 'sweetalert';
-import { UploadClient } from '@uploadcare/upload-client';
-
-const client = new UploadClient({ publicKey: 'e69ab6e5db6d4a41760b' });
+import axiosInstance from '../../../axios';
 
 export default function Home({ cheatingLog, updateCheatingLog }) {
   const webcamRef = useRef(null);
@@ -42,15 +40,20 @@ export default function Home({ cheatingLog, updateCheatingLog }) {
     const context = canvas.getContext('2d');
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    const dataUrl = canvas.toDataURL('image/jpeg');
-    const file = dataURLtoFile(dataUrl, `cheating_${Date.now()}.jpg`);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.5); // Using 0.5 quality to save space
 
     try {
-      const result = await client.uploadFile(file);
-      console.log('✅ Uploaded to Uploadcare:', result.cdnUrl);
+      const response = await axiosInstance.post('/api/upload-screenshot', {
+        image: dataUrl,
+        username: cheatingLog?.username || 'Unknown',
+        type: type,
+        timestamp: Date.now()
+      });
+
+      console.log('✅ Uploaded screenshot locally:', response.data.url);
       
       const screenshot = {
-        url: result.cdnUrl,
+        url: response.data.url,
         type: type,
         detectedAt: new Date()
       };
@@ -60,7 +63,7 @@ export default function Home({ cheatingLog, updateCheatingLog }) {
       
       return screenshot;
     } catch (error) {
-      console.error('❌ Upload failed:', error);
+      console.error('❌ Local upload failed:', error);
       return null;
     }
   };
@@ -197,13 +200,3 @@ export default function Home({ cheatingLog, updateCheatingLog }) {
   );
 }
 
-// Helper to convert base64 to File
-function dataURLtoFile(dataUrl, fileName) {
-  const arr = dataUrl.split(',');
-  const mime = arr[0].match(/:(.*?);/)[1];
-  const bstr = atob(arr[1]);
-  let n = bstr.length;
-  const u8arr = new Uint8Array(n);
-  while (n--) u8arr[n] = bstr.charCodeAt(n);
-  return new File([u8arr], fileName, { type: mime });
-}

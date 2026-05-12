@@ -40,6 +40,16 @@ const TestPage = () => {
   }, [userExamdata, examId]);
 
   useEffect(() => {
+    if (userInfo) {
+      updateCheatingLog((prevLog) => ({
+        ...prevLog,
+        username: userInfo.name,
+        email: userInfo.email,
+      }));
+    }
+  }, [userInfo]);
+
+  useEffect(() => {
   const el = document.documentElement;
 
     const enterFullscreen = async () => {
@@ -286,13 +296,14 @@ const TestPage = () => {
               <Grid item xs={12}>
                 <BlankCard>
                   <Box
-                    width="300px"
-                    maxHeight="180px"
+                    width="320px"
+                    height="240px"
                     boxShadow={3}
                     display="flex"
                     flexDirection="column"
                     alignItems="start"
                     justifyContent="center"
+                    sx={{ overflow: 'hidden' }}
                   >
                     <WebCam cheatingLog={cheatingLog} updateCheatingLog={updateCheatingLog} />
                   </Box>

@@ -79,19 +79,69 @@ app.use("/api/users", examRoutes);
 app.use("/api/users", resultRoutes);
 app.use("/api/coding", codingRoutes);
 
+// Endpoint to save screenshots to local filesystem
+app.post("/api/upload-screenshot", (req, res) => {
+  const { image, username, type, timestamp } = req.body;
+  console.log(`\n🚨 PROHIBITION DETECTED 🚨`);
+  console.log(`Student: ${username || 'Unknown'} | Type: ${type}`);
+  
+  if (!image) {
+    return res.status(400).json({ success: false, message: "No image provided" });
+  }
+
+  try {
+    // Extract base64 data
+    const matches = image.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+    if (!matches || matches.length !== 3) {
+      return res.status(400).json({ success: false, message: "Invalid image format" });
+    }
+
+    const imageBuffer = Buffer.from(matches[2], "base64");
+    
+    // Ensure uploads directory exists (path.resolve() is already the backend folder)
+    const uploadsDir = path.join(path.resolve(), "uploads");
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+
+    // Format filename safely
+    const safeUsername = (username || "Unknown").replace(/[^a-z0-9]/gi, '_');
+    const safeType = (type || "Unknown").replace(/[^a-z0-9]/gi, '_');
+    const safeTimestamp = (timestamp || Date.now()).toString().replace(/[^a-z0-9]/gi, '_');
+    const filename = `${safeUsername}_${safeType}_${safeTimestamp}.jpg`;
+    
+    const filePath = path.join(uploadsDir, filename);
+    
+    // Write file
+    fs.writeFileSync(filePath, imageBuffer);
+    console.log(`✅ Image successfully stored at: ${filePath}`);
+    
+    // Return the full URL so the frontend can display it correctly
+    const backendUrl = req.protocol + '://' + req.get('host');
+    res.json({ success: true, url: `${backendUrl}/uploads/${filename}` });
+  } catch (error) {
+    console.error("❌ Error saving screenshot:", error);
+    res.status(500).json({ success: false, message: "Failed to save screenshot" });
+  }
+});
+
 // we we are deploying this in production
 // make frontend build then
 if (process.env.NODE_ENV === "production") {
   const __dirname = path.resolve();
   // we making front build folder static to serve from this app
-  app.use(express.static(path.join(__dirname, "/frontend/dist")));
+  app.use(express.static(path.join(__dirname, "../frontend/dist")));
 
   // if we get an routes that are not define by us we show then index html file
   // every enpoint that is not api/users go to this index file
   app.get("*", (req, res) =>
-    res.sendFile(path.resolve(__dirname, "frontend", "dist", "index.html"))
+    res.sendFile(path.resolve(__dirname, "../frontend", "dist", "index.html"))
   );
 } else {
+  // Make uploads directory accessible in dev
+  const __dirname = path.resolve();
+  app.use('/uploads', express.static(path.join(__dirname, "uploads")));
+  
   app.get("/", (req, res) => {
     res.send("<h1>server is running </h1>");
   });
